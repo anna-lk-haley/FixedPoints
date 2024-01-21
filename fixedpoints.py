@@ -136,13 +136,18 @@ def WSSDivergence(dd, case_name, cpos, wss_files):
         p = pv.Plotter(off_screen=True, window_size=[768,768])
         p.camera_position = cpos
         p.add_mesh(dd.surf, scalars='div_wss', cmap = 'RdBu', smooth_shading=True)#scalars = 'wss_mag')
-        arrows = dd.surf.glyph(scale=False, orient="wss_n", tolerance = 0.003, factor=0.9, geom=pv.Arrow())
+        arrows = dd.surf.glyph(scale=False, orient="wss_n", tolerance = 0.00001, factor=0.3, geom=pv.Arrow())#tolerance = 0.001, factor=0.9
         p.add_mesh(arrows, color='black')
-        p.add_points(dd.surf.points[Poin_saddle_mask==1], render_points_as_spheres=True, color = 'yellow', point_size=8, label='saddle points')
-        p.add_points(dd.surf.points[Poin_unstable_focus==1], render_points_as_spheres=True, color = 'red', point_size=8, label='unstable focus')
-        p.add_points(dd.surf.points[Poin_stable_focus==1], render_points_as_spheres=True, color = 'green', point_size=8, label='stable focus')
-        p.add_points(dd.surf.points[Poin_unstable_node==1], render_points_as_spheres=True, color = 'blue', point_size=8, label='unstable node')
-        p.add_points(dd.surf.points[Poin_stable_node==1], render_points_as_spheres=True, color = 'white', point_size=8, label='stable node')   
+        if np.abs(np.sum(dd.surf.points[Poin_saddle_mask==1]))>0:
+            p.add_points(dd.surf.points[Poin_saddle_mask==1], render_points_as_spheres=True, color = 'yellow', point_size=8, label='saddle points')
+        if np.abs(np.sum(dd.surf.points[Poin_unstable_focus==1]))>0:
+            p.add_points(dd.surf.points[Poin_unstable_focus==1], render_points_as_spheres=True, color = 'red', point_size=8, label='unstable focus')
+        if np.abs(np.sum(dd.surf.points[Poin_stable_focus==1]))>0:
+            p.add_points(dd.surf.points[Poin_stable_focus==1], render_points_as_spheres=True, color = 'green', point_size=8, label='stable focus')
+        if np.abs(np.sum(dd.surf.points[Poin_unstable_node==1]))>0:
+            p.add_points(dd.surf.points[Poin_unstable_node==1], render_points_as_spheres=True, color = 'blue', point_size=8, label='unstable node')
+        if np.abs(np.sum(dd.surf.points[Poin_stable_node==1]))>0:
+            p.add_points(dd.surf.points[Poin_stable_node==1], render_points_as_spheres=True, color = 'white', point_size=8, label='stable node')   
         legend_entries=[['saddle points', 'yellow'],['unstable focus', 'red'],['stable focus', 'green'],['unstable node', 'blue'],['stable node', 'white']]
         p.add_legend(legend_entries )     
         p.show(screenshot='dynamics/{}/imgs/fixed_points_{}'.format(case_name, ts), auto_close=False)
@@ -166,8 +171,10 @@ if __name__ == "__main__":
     case_name = sys.argv[2]
     dd = Dataset(results_folder)
     main_folder = Path(results_folder).parents[1]
-    vtu_file = Path(main_folder/ ('mesh/' + case_name + '.vtu'))
-    dd = dd.assemble_mesh().assemble_surface(mesh_file=vtu_file) 
+    #vtu_file = Path(main_folder/ ('mesh/' + case_name + '.vtu'))
+    #dd = dd.assemble_mesh().assemble_surface(mesh_file=vtu_file) 
+    h5_file = Path(main_folder/ ('data/' + case_name + '.h5'))
+    dd=dd.assemble_mesh().assemble_surface(mesh_file=h5_file)
     imgs_folder = Path(('dynamics/{}/imgs'.format(sys.argv[2])))
     if not imgs_folder.exists():
         imgs_folder.mkdir(parents=True, exist_ok=True)
@@ -175,5 +182,5 @@ if __name__ == "__main__":
     e = sys.argv[4]
     print('solving files {} to {}'.format(s,e))
     wss_files = dd.wss_files[int(s):int(e)]
-    cpos = [(77.2377732289982, 36.374474479668635, 81.99126078407934), (20.56094980239868, -35.10753917694092, -2.8253860473632812), (0.8417227780030232, -0.5267367222999851, -0.11853771708423333)]
+    cpos = [(17.36476051491626, 24.96275742405927, 62.03087501221269),(23.624139362721955, 26.84634726814069, 33.309048474810815),(0.9770054288542709, 0.003937375788068374, 0.2131780689029381)]    
     WSSDivergence(dd, case_name, cpos, wss_files)

@@ -22,8 +22,11 @@ export PYVISTA_USE_PANEL=true
 module load CCEnv StdEnv/2020 gcc/9.3.0 vtk/9.0.1 python/3.7.7 
 source $HOME/.virtualenvs/toolsenv/bin/activate
 
-results_folder='../mesh_rez/cases/case_A/case_028_low/results/art_PTSeg028_low_I1_FC_VENOUS_Q557_Per915_Newt370_ts15660_cy2_uO1'
-wss_folder='$SCRATCH/mesh_rez/cases/case_A/case_028_low/results/art_PTSeg028_low_I1_FC_VENOUS_Q557_Per915_Newt370_ts15660_cy2_uO1/wss_files'
+results_folder='/project/s/steinman/mnajafi/characterize_turbulence_p1p1/results/art_c0099_MCA_T_I5_ICA_V27_FC_MCA_10_Q268_Per951_Newt370_ts10000_cy2_uO1'
+wss_folder='$PROJECT/../mnajafi/characterize_turbulence_p1p1/results/art_c0099_MCA_T_I5_ICA_V27_FC_MCA_10_Q268_Per951_Newt370_ts10000_cy2_uO1/wss_files'
+#results_folder='../mesh_rez/cases/case_A/case_028_low/results/art_PTSeg028_low_I1_FC_VENOUS_Q557_Per915_Newt370_ts15660_cy2_uO1'
+#wss_folder='$SCRATCH/mesh_rez/cases/case_A/case_028_low/results/art_PTSeg028_low_I1_FC_VENOUS_Q557_Per915_Newt370_ts15660_cy2_uO1/wss_files'
+case_name='c0099_MCA_T'
 wss_files=$(eval "ls -l $wss_folder | wc -l")
 echo There are $wss_files WSS files
 grps=$(($wss_files/39)) #39 processes - rounded down number
@@ -34,11 +37,11 @@ do
     start_file=$(($num_files))
     num_files=$((($i+ 1)*$grps))
     end_file=$(($num_files-1))
-    (~/../macdo708/xvfb-run-safe python fixedpoints.py $results_folder PTSeg028_low $start_file $end_file && echo finished $i th group)&
+    (~/../macdo708/xvfb-run-safe python fixedpoints.py $results_folder $case_name $start_file $end_file && echo finished $i th group)&
 done
 start_file=$num_files
 end_file=$(($num_files+$rem-1))
-(~/../macdo708/xvfb-run-safe python fixedpoints.py $results_folder PTSeg028_low $start_file $end_file && echo 'finished 40 th group')&
+(~/../macdo708/xvfb-run-safe python fixedpoints.py $results_folder $case_name $start_file $end_file && echo 'finished 40 th group')&
 wait
 
-#~/../macdo708/xvfb-run-safe python fixedpoints.py $results_folder PTSeg028_low 0 $(($wss_files-1))
+#~/../macdo708/xvfb-run-safe python fixedpoints.py $results_folder $case_name 0 $(($wss_files-1))
