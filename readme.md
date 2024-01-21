@@ -4,4 +4,4 @@ You could rewrite this to use mulptiprocessing or similar, but using the attache
 
 To run this, you will require some dependencies - will add later.
 
-![Alt text](/example/fixed_points_10904.png?raw=true "Fixed points on an aneurysm model")
+![Alt text](/example/fixed_points_9608.png?raw=true "Fixed points on an aneurysm model")

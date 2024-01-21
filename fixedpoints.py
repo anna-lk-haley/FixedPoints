@@ -4,10 +4,51 @@ import numpy as np
 import vtk as _vtk
 import math
 import pyvista as pv
-from bsl.dataset import Dataset
-from bsl import common as cc
 import h5py
 import scipy.linalg as la
+
+class Dataset():
+    """ Load BSL-specific data and common ops. 
+    """
+    def __init__(self, folder, file_glob_key=None, mesh_glob_key=None):
+        """ Init the dataset.
+
+        Args:
+            folder (path): a folder with h5 data and mesh files from the BSL solver.
+            file_glob_key (str): key for globbing h5 files. 
+            mesh_glob_key (str): key for globbing mesh h5 file.
+        """
+        self.folder = Path(folder)
+
+        if mesh_glob_key is None:
+            mesh_glob_key = '*h5'
+
+        wss_folder = (folder / 'wss_files')
+        if wss_folder.exists():
+            wss_glob_key = '*_curcyc_*wss.h5'
+            self.wss_files = sorted(wss_folder.glob(wss_glob_key),
+                key=self._get_ts)
+
+    def _get_ts(self, h5_file):
+        """ Given a simulation h5_file, get ts. """
+        return int(h5_file.stem.split('_ts=')[1].split('_')[0])
+    
+    def assemble_surface(self, mesh_file):
+        """ Create PolyData from h5 mesh file. 
+
+        Args:
+            mesh_file
+        """
+        # assert self.mesh_file.exists(), 'mesh_file does not exist.'
+        if mesh_file.suffix == '.h5':
+            with h5py.File(mesh_file, 'r') as hf:
+                points = np.array(hf['Mesh']['Wall']['coordinates'])
+                cells = np.array(hf['Mesh']['Wall']['topology'])
+
+                cell_type = np.ones((cells.shape[0], 1), dtype=int) * 3
+                cells = np.concatenate([cell_type, cells], axis = 1)
+                self.surf = pv.PolyData(points, cells)
+        return self
 
 def get_wss(wss_file, array='wss'):
     if array == 'wss':
@@ -40,9 +81,11 @@ def Poincare_n(dd, points, cells, E, eps=0):
     #don't use loop here either
     P_pos = np.where((s1>eps) & (s2>eps) & (s3>eps), 1,0) #all have same positive sign = 1
     P_neg = np.where((s1<eps) &(s2<eps) & (s3<eps), -1,0) #all have same negative sign = -1
-    P = P_pos+P_neg
 
-    return P #Poincare index is by the cell
+    P = P_pos+P_neg
+    P_ndx = np.where(((s1>eps) & (s2< eps)) | ((s2>eps) & (s1< eps)), 0, P)
+    
+    return P_ndx #Poincare index is by the cell
 
 def WSSDivergence(dd, case_name, cpos, wss_files):
     points = dd.surf.points
@@ -80,7 +123,7 @@ def WSSDivergence(dd, case_name, cpos, wss_files):
             dd.surf.point_arrays['wss'] = get_wss(wss_file)
             dd.surf.point_arrays['wss_mag'] = np.linalg.norm(dd.surf.point_arrays['wss'], axis=1)
             dd.surf.point_arrays['wss_n'] = dd.surf.point_arrays['wss']/np.concatenate((dd.surf.point_arrays['wss_mag'].reshape(-1,1),dd.surf.point_arrays['wss_mag'].reshape(-1,1),dd.surf.point_arrays['wss_mag'].reshape(-1,1)), axis=1)
-            threshold=np.percentile(dd.surf.point_arrays['wss_mag'],50);
+            threshold=np.percentile(dd.surf.point_arrays['wss_mag'],50)
             #compute gradients
             grad = dd.surf.compute_derivative(scalars="wss", gradient=True, qcriterion=False, faster=False)
             dd.surf.point_arrays['div_wss'] = grad.point_arrays['gradient'][:,0]+grad.point_arrays['gradient'][:,5]+grad.point_arrays['gradient'][:,8]
@@ -135,19 +178,19 @@ def WSSDivergence(dd, case_name, cpos, wss_files):
         #make an animation
         p = pv.Plotter(off_screen=True, window_size=[768,768])
         p.camera_position = cpos
-        p.add_mesh(dd.surf, scalars='div_wss', cmap = 'RdBu', smooth_shading=True)#scalars = 'wss_mag')
+        p.add_mesh(dd.surf, scalars='div_wss', cmap = 'bwr', smooth_shading=True, log_scale=True)#scalars = 'wss_mag')
         arrows = dd.surf.glyph(scale=False, orient="wss_n", tolerance = 0.00001, factor=0.3, geom=pv.Arrow())#tolerance = 0.001, factor=0.9
         p.add_mesh(arrows, color='black')
         if np.abs(np.sum(dd.surf.points[Poin_saddle_mask==1]))>0:
-            p.add_points(dd.surf.points[Poin_saddle_mask==1], render_points_as_spheres=True, color = 'yellow', point_size=8, label='saddle points')
+            p.add_points(dd.surf.points[Poin_saddle_mask==1], render_points_as_spheres=True, color = 'yellow', point_size=10, label='saddle points')
         if np.abs(np.sum(dd.surf.points[Poin_unstable_focus==1]))>0:
-            p.add_points(dd.surf.points[Poin_unstable_focus==1], render_points_as_spheres=True, color = 'red', point_size=8, label='unstable focus')
+            p.add_points(dd.surf.points[Poin_unstable_focus==1], render_points_as_spheres=True, color = 'red', point_size=10, label='unstable focus')
         if np.abs(np.sum(dd.surf.points[Poin_stable_focus==1]))>0:
-            p.add_points(dd.surf.points[Poin_stable_focus==1], render_points_as_spheres=True, color = 'green', point_size=8, label='stable focus')
+            p.add_points(dd.surf.points[Poin_stable_focus==1], render_points_as_spheres=True, color = 'green', point_size=10, label='stable focus')
         if np.abs(np.sum(dd.surf.points[Poin_unstable_node==1]))>0:
-            p.add_points(dd.surf.points[Poin_unstable_node==1], render_points_as_spheres=True, color = 'blue', point_size=8, label='unstable node')
+            p.add_points(dd.surf.points[Poin_unstable_node==1], render_points_as_spheres=True, color = 'blue', point_size=10, label='unstable node')
         if np.abs(np.sum(dd.surf.points[Poin_stable_node==1]))>0:
-            p.add_points(dd.surf.points[Poin_stable_node==1], render_points_as_spheres=True, color = 'white', point_size=8, label='stable node')   
+            p.add_points(dd.surf.points[Poin_stable_node==1], render_points_as_spheres=True, color = 'white', point_size=10, label='stable node')   
         legend_entries=[['saddle points', 'yellow'],['unstable focus', 'red'],['stable focus', 'green'],['unstable node', 'blue'],['stable node', 'white']]
         p.add_legend(legend_entries )     
         p.show(screenshot='dynamics/{}/imgs/fixed_points_{}'.format(case_name, ts), auto_close=False)
@@ -172,9 +215,9 @@ if __name__ == "__main__":
     dd = Dataset(results_folder)
     main_folder = Path(results_folder).parents[1]
     #vtu_file = Path(main_folder/ ('mesh/' + case_name + '.vtu'))
-    #dd = dd.assemble_mesh().assemble_surface(mesh_file=vtu_file) 
+    #dd = dd.assemble_surface(mesh_file=vtu_file) 
     h5_file = Path(main_folder/ ('data/' + case_name + '.h5'))
-    dd=dd.assemble_mesh().assemble_surface(mesh_file=h5_file)
+    dd=dd.assemble_surface(mesh_file=h5_file)
     imgs_folder = Path(('dynamics/{}/imgs'.format(sys.argv[2])))
     if not imgs_folder.exists():
         imgs_folder.mkdir(parents=True, exist_ok=True)
@@ -182,5 +225,5 @@ if __name__ == "__main__":
     e = sys.argv[4]
     print('solving files {} to {}'.format(s,e))
     wss_files = dd.wss_files[int(s):int(e)]
-    cpos = [(17.36476051491626, 24.96275742405927, 62.03087501221269),(23.624139362721955, 26.84634726814069, 33.309048474810815),(0.9770054288542709, 0.003937375788068374, 0.2131780689029381)]    
+    cpos = [(17.649447468732703, -25.625457981316902, 20.378326781069894), (-2.8439961369396833, -10.443120909352007, 9.187968669868942), (-0.3328094736762078, 0.22562571892084304, 0.9156041116076414)]
     WSSDivergence(dd, case_name, cpos, wss_files)
