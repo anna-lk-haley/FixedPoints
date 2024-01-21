@@ -3,3 +3,5 @@ This is a parallelizable fixed points code written in Python by Anna Haley, adap
 You could rewrite this to use mulptiprocessing or similar, but using the attached sbatch script may be a better idea.
 
 To run this, you will require some dependencies - will add later.
+
+![Alt text](/example/fixed_points_10904.png?raw=true "Fixed points on an aneurysm model")
