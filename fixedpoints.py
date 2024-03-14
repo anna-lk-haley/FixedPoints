@@ -42,7 +42,7 @@ class Dataset():
         # assert self.mesh_file.exists(), 'mesh_file does not exist.'
         if mesh_file.suffix == '.h5':
             with h5py.File(mesh_file, 'r') as hf:
-                points = np.array(hf['Mesh']['Wall']['coordinates'])
+                points = np.array(hf['Mesh']['Wall']['coordinates'])*(10**-3)
                 cells = np.array(hf['Mesh']['Wall']['topology'])
 
                 cell_type = np.ones((cells.shape[0], 1), dtype=int) * 3
@@ -68,7 +68,7 @@ def Poincare_n(dd, points, cells, E, eps=0):
     b = points[cells[:,3],:]-points[cells[:,1],:] #c for each cell
     c = np.cross(a,b)/np.concatenate((dist1.reshape(-1,1),dist1.reshape(-1,1),dist1.reshape(-1,1)), axis=1)
 
-    #perturbed wss = wss-(wss)_n*c which is the wss minus the wss in the normal direction to each cell by the BAC-CAB rule
+    #check wss = wss-(wss)_n*c which is the wss minus the wss in the normal direction to each cell by the BAC-CAB rule
     v1 = np.cross(np.cross(wss[cells[:,1],:],c),c) 
     v2 = np.cross(np.cross(wss[cells[:,2],:],c),c)
     v3 = np.cross(np.cross(wss[cells[:,3],:],c),c)
@@ -80,7 +80,7 @@ def Poincare_n(dd, points, cells, E, eps=0):
 
     #don't use loop here either
     P_pos = np.where((s1>eps) & (s2>eps) & (s3>eps), 1,0) #all have same positive sign = 1
-    P_neg = np.where((s1<eps) &(s2<eps) & (s3<eps), -1,0) #all have same negative sign = -1
+    P_neg = np.where((s1<eps) & (s2<eps) & (s3<eps), -1,0) #all have same negative sign = -1
 
     P = P_pos+P_neg
     P_ndx = np.where(((s1>eps) & (s2< eps)) | ((s2>eps) & (s1< eps)), 0, P)
@@ -88,7 +88,7 @@ def Poincare_n(dd, points, cells, E, eps=0):
     return P_ndx #Poincare index is by the cell
 
 def WSSDivergence(dd, case_name, cpos, wss_files):
-    points = dd.surf.points
+    points = dd.surf.points #these points are in mm
     cells = dd.surf.faces.reshape(-1,4) #preceeded by # verts
     #numb = dd.surf.n_cells
     #print(numb, cells.shape)
@@ -123,7 +123,7 @@ def WSSDivergence(dd, case_name, cpos, wss_files):
             dd.surf.point_arrays['wss'] = get_wss(wss_file)
             dd.surf.point_arrays['wss_mag'] = np.linalg.norm(dd.surf.point_arrays['wss'], axis=1)
             dd.surf.point_arrays['wss_n'] = dd.surf.point_arrays['wss']/np.concatenate((dd.surf.point_arrays['wss_mag'].reshape(-1,1),dd.surf.point_arrays['wss_mag'].reshape(-1,1),dd.surf.point_arrays['wss_mag'].reshape(-1,1)), axis=1)
-            threshold=np.percentile(dd.surf.point_arrays['wss_mag'],50)
+            threshold=np.percentile(dd.surf.point_arrays['wss_mag'],40)
             #compute gradients
             grad = dd.surf.compute_derivative(scalars="wss", gradient=True, qcriterion=False, faster=False)
             dd.surf.point_arrays['div_wss'] = grad.point_arrays['gradient'][:,0]+grad.point_arrays['gradient'][:,5]+grad.point_arrays['gradient'][:,8]
